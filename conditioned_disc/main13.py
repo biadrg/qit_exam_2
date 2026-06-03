@@ -76,7 +76,7 @@ def process_switchgear_disc(image_path):
 
     # black_mask_bool = black_mask_dilated > 0
 
-    manual_mask_path = "manual_mask2.jpg"
+    manual_mask_path = "manual_mask.jpg"
     manual_mask = cv2.imread(manual_mask_path, cv2.IMREAD_GRAYSCALE)
 
     if manual_mask is None:
