@@ -74,6 +74,25 @@ def process_switchgear_disc(image_path):
     black_mask_dilated = cv2.dilate(cleaned_grooves, kernel_buffer, iterations=2)
     cv2.imwrite("res/3_black_grooves_mask.jpg", black_mask_dilated)
 
+
+
+    '''
+    manual_mask_path = "manual_grooves_mask.png"
+    manual_mask = cv2.imread(manual_mask_path, cv2.IMREAD_GRAYSCALE)
+    
+    if manual_mask is None:
+        print("Error: Manual mask file not found.")
+        return
+
+    # Force the mask to be strictly binary (just in case of compression artifacts)
+    _, binary_mask = cv2.threshold(manual_mask, 127, 255, cv2.THRESH_BINARY)
+
+    # Convert to boolean for the clustering exclusion logic
+    black_mask_bool = binary_mask > 0
+
+    # Save a copy to the output folder for your records
+    cv2.imwrite("images/3_black_grooves_mask.jpg", binary_mask)'''
+
     black_mask_bool = black_mask_dilated > 0
 
     # ==========================================
