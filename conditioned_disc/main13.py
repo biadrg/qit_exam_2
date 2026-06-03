@@ -5,8 +5,8 @@ from sklearn.cluster import KMeans
 
 
 def process_switchgear_disc(image_path):
-    if not os.path.exists("images13"):
-        os.makedirs("images13")
+    if not os.path.exists("images13_5"):
+        os.makedirs("images13_5")
 
     img = cv2.imread(image_path)
     if img is None:
@@ -40,7 +40,7 @@ def process_switchgear_disc(image_path):
     mask_bool = mask > 0
 
     img_masked = cv2.bitwise_and(img, img, mask=mask)
-    cv2.imwrite("images13/1_masked_disc.jpg", img_masked)
+    cv2.imwrite("images13_5/1_masked_disc.jpg", img_masked)
 
     # ==========================================
     # 2. Advanced Preprocessing (Bilateral + CLAHE)
@@ -52,7 +52,7 @@ def process_switchgear_disc(image_path):
     img_clahe = clahe.apply(smoothed)
 
     img_clahe_masked = cv2.bitwise_and(img_clahe, img_clahe, mask=mask)
-    cv2.imwrite("images13/2_high_contrast.jpg", img_clahe_masked)
+    cv2.imwrite("images13_5/2_high_contrast.jpg", img_clahe_masked)
 
     # ==========================================
     # 3. Robust Black Groove Isolation
@@ -76,55 +76,39 @@ def process_switchgear_disc(image_path):
 
     # black_mask_bool = black_mask_dilated > 0
 
-    manual_mask_path = "manual_mask.jpg"
-    manual_mask = cv2.imread(manual_mask_path, cv2.IMREAD_GRAYSCALE)
+    # manual_mask_path = "manual_mask.jpg"
 
-    if manual_mask is None:
-        print("Error: Manual mask file not found.")
-        return
+    manual_grooves = cv2.imread("manual_mask.jpg", cv2.IMREAD_GRAYSCALE)
+    manual_center = cv2.imread("center_mask_optimised.jpg", cv2.IMREAD_GRAYSCALE)
 
-    # Force the mask to be strictly binary (just in case of compression artifacts)
-    _, binary_mask = cv2.threshold(manual_mask, 127, 255, cv2.THRESH_BINARY)
+    # manual_mask = cv2.imread(manual_mask_path, cv2.IMREAD_GRAYSCALE)
 
-    # Convert to boolean for the clustering exclusion logic
-    black_mask_bool = binary_mask > 0
-
-    # Save a copy to the output folder for your records
-    cv2.imwrite("results/3_black_grooves_mask.jpg", binary_mask)
-
-
-
-    '''
-    # load both masks
-    manual_grooves = cv2.imread("grooves_mask.png", cv2.IMREAD_GRAYSCALE)
-    manual_center = cv2.imread("center_mask.png", cv2.IMREAD_GRAYSCALE)
-    
     _, grooves_binary = cv2.threshold(manual_grooves, 127, 255, cv2.THRESH_BINARY)
     _, center_binary = cv2.threshold(manual_center, 127, 255, cv2.THRESH_BINARY)
-    
+
     grooves_bool = grooves_binary > 0
     center_bool = center_binary > 0
-    
-    # exclude both the grooves and the center from the clustering surface
+
     exclusion_zone = grooves_bool | center_bool
     surface_mask = mask_bool & (~exclusion_zone)
-    
-    # ... [run your kmeans clustering on surface_mask as normal here] ...
-    
-    # apply colours to the clustered pixels
-    vis[shiny_mask] = [255, 255, 255]
-    vis[unconditioned_mask] = [138, 73, 138]
-    
-    # force the center to be white
-    vis[center_bool] = [255, 255, 255]
-    
-    # force the grooves to be black (this goes last so it overwrites any overlaps)
-    vis[grooves_bool] = [0, 0, 0]'''
+
+    # if manual_mask is None:
+    #     print("Error: Manual mask file not found.")
+    #     return
+
+    # # Force the mask to be strictly binary (just in case of compression artifacts)
+    # _, binary_mask = cv2.threshold(manual_mask, 127, 255, cv2.THRESH_BINARY)
+
+    # # Convert to boolean for the clustering exclusion logic
+    # black_mask_bool = binary_mask > 0
+
+    # # Save a copy to the output folder for your records
+    # cv2.imwrite("images13_5/3_black_grooves_mask.jpg", binary_mask)
 
     # ==========================================
     # 4. Surface Segmentation (3-Cluster Logic)
     # ==========================================
-    surface_mask = mask_bool & (~black_mask_bool)
+    surface_mask = mask_bool & (~grooves_bool) & (~center_bool)
     pixels_to_cluster = img_clahe_masked[surface_mask].reshape(-1, 1)
 
     # Increase to 3 clusters to catch mid-tone noise separately
@@ -149,18 +133,28 @@ def process_switchgear_disc(image_path):
     # Visualisation map
     vis = np.zeros((height, width, 3), dtype=np.uint8)
 
+    # vis[shiny_mask] = [255, 255, 255]
+    # vis[unconditioned_mask] = [138, 73, 138]
+    # vis[grooves_bool] = [0, 0, 0]
+
+    # apply colours to the clustered pixels
     vis[shiny_mask] = [255, 255, 255]
     vis[unconditioned_mask] = [138, 73, 138]
-    vis[black_mask_bool] = [0, 0, 0]
+
+    # force the center to be white
+    vis[center_bool] = [255, 255, 255]
+
+    # force the grooves to be black (this goes last so it overwrites any overlaps)
+    vis[grooves_bool] = [0, 0, 0]
 
     vis = cv2.bitwise_and(vis, vis, mask=mask)
-    cv2.imwrite("images13/4_final_segmentation.jpg", vis)
+    cv2.imwrite("images13_5/4_final_segmentation.jpg", vis)
 
     # ==========================================
     # Output Calculations
     # ==========================================
     total_disc_area = np.sum(mask_bool)
-    black_area = np.sum(black_mask_bool)
+    black_area = np.sum(grooves_bool)
     surface_area = total_disc_area - black_area
 
     shiny_area = np.sum(shiny_mask)

@@ -8,23 +8,23 @@ import numpy as np
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 
-if not os.path.exists("images"):
-    os.makedirs("images")
+if not os.path.exists("images5"):
+    os.makedirs("images5")
 
 img = cv2.imread("Bild.jpg")
 img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 # save gray and rgb images as files
-cv2.imwrite("images/image.jpg", img)
-cv2.imwrite("images/image_gray.jpg", img_gray)
-cv2.imwrite("images/image_rgb.jpg", img_rgb)
+cv2.imwrite("images5/image.jpg", img)
+cv2.imwrite("images5/image_gray.jpg", img_gray)
+cv2.imwrite("images5/image_rgb.jpg", img_rgb)
 
 height, width = img_rgb.shape[:2]
 
 # blur image to reduce noise for circle detection
 blur1 = cv2.GaussianBlur(img_gray, (9, 9), 2)
-cv2.imwrite("images/image_blur.jpg", blur1)
+cv2.imwrite("images5/image_blur.jpg", blur1)
 
 # circle detection
 circle = cv2.HoughCircles(
@@ -49,13 +49,13 @@ mask_circle = mask > 0
 
 # apply mask to image
 img_masked = cv2.bitwise_and(img, img, mask=mask.astype(np.uint8))
-cv2.imwrite("images/image_masked.jpg", img_masked)
+cv2.imwrite("images5/image_masked.jpg", img_masked)
 
 # brightness and contrast
 alpha = 1.75
 beta = -50
 img_adjusted = cv2.convertScaleAbs(img_masked, alpha=alpha, beta=beta)
-cv2.imwrite("images/image_adjusted.jpg", img_adjusted)
+cv2.imwrite("images5/image_adjusted.jpg", img_adjusted)
 
 # convert to LAB for clustering
 lab = cv2.cvtColor(img_adjusted, cv2.COLOR_BGR2LAB)
@@ -141,8 +141,8 @@ for i in range(1, num_labels):
 black_mask_u8 = cv2.morphologyEx(black_mask_u8, cv2.MORPH_CLOSE, kernel3)
 
 # black_mask = black_mask_u8 > 0
-ack_mask = (img_gray < otsu_thresh) & mask_circle
-cv2.imwrite("images/black_mask.jpg", black_mask_u8)
+black_mask = (img_gray < otsu_thresh) & mask_circle
+cv2.imwrite("images5/black_mask.jpg", black_mask_u8)
 
 # ============================================================
 # Refine purple / white regions so purple does not hug black
@@ -196,4 +196,4 @@ vis[black_mask] = [0, 0, 0]
 # keep only circle
 vis_circle = cv2.bitwise_and(vis, vis, mask=mask.astype(np.uint8))
 
-cv2.imwrite("images/image_highlighted.jpg", vis_circle)
+cv2.imwrite("images5/image_highlighted.jpg", vis_circle)

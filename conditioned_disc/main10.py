@@ -6,8 +6,8 @@ from sklearn.cluster import KMeans
 
 def process_switchgear_disc(image_path):
     # Ensure the output directory exists for intermediate steps
-    if not os.path.exists("results"):
-        os.makedirs("results")
+    if not os.path.exists("images10"):
+        os.makedirs("images10")
 
     # Read the image
     img = cv2.imread(image_path)
@@ -49,7 +49,7 @@ def process_switchgear_disc(image_path):
 
     # Apply the mask to the original image to black out the background entirely.
     img_masked = cv2.bitwise_and(img, img, mask=mask)
-    cv2.imwrite("results/1_masked_disc.jpg", img_masked)
+    cv2.imwrite("images10/1_masked_disc.jpg", img_masked)
 
     # ==========================================
     # 2. Aggressive Contrast Enhancement
@@ -61,7 +61,7 @@ def process_switchgear_disc(image_path):
 
     # Re-apply the disc mask to keep the background clean and completely black.
     img_clahe_masked = cv2.bitwise_and(img_clahe, img_clahe, mask=mask)
-    cv2.imwrite("results/2_high_contrast.jpg", img_clahe_masked)
+    cv2.imwrite("images10/2_high_contrast.jpg", img_clahe_masked)
 
     # ==========================================
     # 3. Robust Black Groove Isolation
@@ -103,7 +103,7 @@ def process_switchgear_disc(image_path):
     black_mask_bool = binary_mask > 0
 
     # Save a copy to the output folder for your records
-    cv2.imwrite("results/3_black_grooves_mask.jpg", binary_mask)
+    cv2.imwrite("images10/3_black_grooves_mask.jpg", binary_mask)
 
     # ==========================================
     # 4. Surface Segmentation (Shiny vs. Unconditioned)
@@ -145,7 +145,7 @@ def process_switchgear_disc(image_path):
 
     # Apply the master mask one last time to ensure the background remains zeroed out.
     vis = cv2.bitwise_and(vis, vis, mask=mask)
-    cv2.imwrite("results/4_final_segmentation.jpg", vis)
+    cv2.imwrite("images10/4_final_segmentation.jpg", vis)
 
     # ==========================================
     # Output Calculations

@@ -4,8 +4,8 @@ def brightness(lab):
 
 import os
 
-if not os.path.exists("plots"):
-    os.makedirs("plots")
+if not os.path.exists("images2"):
+    os.makedirs("images2")
 
 import cv2
 import numpy as np
@@ -17,18 +17,18 @@ img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 # save gray and rgb images as files
-cv2.imwrite("plots/image.jpg", img)
-cv2.imwrite("plots/image_gray.jpg", img_gray)
-cv2.imwrite("plots/image_rgb.jpg", img_rgb)
+cv2.imwrite("images2/image.jpg", img)
+cv2.imwrite("images2/image_gray.jpg", img_gray)
+cv2.imwrite("images2/image_rgb.jpg", img_rgb)
 
 height, width = img_rgb.shape[:2]
 
-print("\nCheck points:")
-print("images converted")
+# print("\nCheck points:")
+# print("images converted")
 
 # blur image to reduce noise for circle detection, TO-DO: maybe try different blurs and parameters
 blur1 = cv2.GaussianBlur(img_gray, (9, 9), 2)
-cv2.imwrite("plots/image_blur.jpg", blur1)
+cv2.imwrite("images2/image_blur.jpg", blur1)
 
 # circle detection
 circle = cv2.HoughCircles(
@@ -41,7 +41,7 @@ circle = cv2.HoughCircles(
     minRadius=0,
     maxRadius=0,
 )
-print("circle detected")
+# print("circle detected")
 
 # and therefore mask needed to, results still low though
 mask = np.zeros_like(img_gray)
@@ -53,13 +53,13 @@ mask_circle = mask > 0  # to boolean
 
 # apply mask to image
 img_masked = cv2.bitwise_and(img, img, mask=mask_circle.astype(np.uint8) * 255)
-cv2.imwrite("plots/image_masked.jpg", img_masked)
+cv2.imwrite("images2/image_masked.jpg", img_masked)
 
 # brightness and contrast
 alpha = 1.75
 beta = -50
 img_adjusted = cv2.convertScaleAbs(img_masked, alpha=alpha, beta=beta)
-cv2.imwrite("plots/image_adjusted.jpg", img_adjusted)
+cv2.imwrite("images2/image_adjusted.jpg", img_adjusted)
 
 # preprep
 lab = cv2.cvtColor(img_adjusted, cv2.COLOR_BGR2LAB)  # for kmeans
@@ -134,7 +134,7 @@ for c in target_clusters:
     ]  # highlight edge patches as blue
 
 cv2.imwrite(
-    "plots/image_highlighted.jpg",
+    "images2/image_highlighted.jpg",
     cv2.bitwise_and(vis, vis, mask=mask_circle.astype(np.uint8) * 255),
 )
 
