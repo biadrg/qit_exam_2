@@ -3,10 +3,11 @@ import cv2
 import numpy as np
 from sklearn.cluster import KMeans
 
+
 def process_switchgear_disc(image_path):
     # Ensure the output directory exists for intermediate steps
-    if not os.path.exists("images"):
-        os.makedirs("images")
+    if not os.path.exists("results"):
+        os.makedirs("results")
 
     # Read the image
     img = cv2.imread(image_path)
@@ -33,7 +34,7 @@ def process_switchgear_disc(image_path):
         param1=50,
         param2=30,
         minRadius=0,
-        maxRadius=0
+        maxRadius=0,
     )
 
     # Create a blank mask to zero out the background.
@@ -48,26 +49,28 @@ def process_switchgear_disc(image_path):
 
     # Apply the mask to the original image to black out the background entirely.
     img_masked = cv2.bitwise_and(img, img, mask=mask)
-    cv2.imwrite("images/1_masked_disc.jpg", img_masked)
+    cv2.imwrite("results/1_masked_disc.jpg", img_masked)
 
     # ==========================================
     # 2. Aggressive Contrast Enhancement
     # ==========================================
-    # We apply CLAHE to aggressively enhance local contrast. 
+    # We apply CLAHE to aggressively enhance local contrast.
     # This separates the rough, unconditioned textures from the smooth metal far better than basic alpha/beta scaling.
     clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
     img_clahe = clahe.apply(img_gray)
 
     # Re-apply the disc mask to keep the background clean and completely black.
     img_clahe_masked = cv2.bitwise_and(img_clahe, img_clahe, mask=mask)
-    cv2.imwrite("images/2_high_contrast.jpg", img_clahe_masked)
+    cv2.imwrite("results/2_high_contrast.jpg", img_clahe_masked)
 
     # ==========================================
     # 3. Robust Black Groove Isolation
     # ==========================================
     # We find the baseline threshold using Otsu's method on the pixels inside the disc.
     pixels_inside = img_gray[mask_bool]
-    otsu_thresh, _ = cv2.threshold(pixels_inside, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    otsu_thresh, _ = cv2.threshold(
+        pixels_inside, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    )
 
     # We multiply the threshold by 0.8 to be stricter, capturing only the deepest black pixels of the grooves.
     black_mask_raw = (img_gray < otsu_thresh * 0.8).astype(np.uint8) * 255
@@ -82,7 +85,7 @@ def process_switchgear_disc(image_path):
     # We dilate the mask to create a physical exclusion buffer around the grooves.
     # This stops the unconditioned (purple) cluster from bleeding into the black edges during segmentation.
     black_mask_dilated = cv2.dilate(cleaned_grooves, kernel3, iterations=2)
-    cv2.imwrite("images/3_black_grooves_mask.jpg", black_mask_dilated)
+    cv2.imwrite("results/3_black_grooves_mask.jpg", black_mask_dilated)
 
     black_mask_bool = black_mask_dilated > 0
 
@@ -109,24 +112,24 @@ def process_switchgear_disc(image_path):
     labels_full = np.full(img_gray.shape, -1)
     labels_full[surface_mask] = labels
 
-    unconditioned_mask = (labels_full == unconditioned_lbl)
-    shiny_mask = (labels_full == shiny_lbl)
+    unconditioned_mask = labels_full == unconditioned_lbl
+    shiny_mask = labels_full == shiny_lbl
 
     # Create the final colour-coded visualization map.
     vis = np.zeros((height, width, 3), dtype=np.uint8)
 
     # Set White for shiny metal areas
     vis[shiny_mask] = [255, 255, 255]
-    
+
     # Set Purple for unconditioned areas (OpenCV uses BGR format)
     vis[unconditioned_mask] = [138, 73, 138]
-    
+
     # Set Black for the central grooves
     vis[black_mask_bool] = [0, 0, 0]
 
     # Apply the master mask one last time to ensure the background remains zeroed out.
     vis = cv2.bitwise_and(vis, vis, mask=mask)
-    cv2.imwrite("images/4_final_segmentation.jpg", vis)
+    cv2.imwrite("results/4_final_segmentation.jpg", vis)
 
     # ==========================================
     # Output Calculations
@@ -158,6 +161,7 @@ def process_switchgear_disc(image_path):
     print(f"Shiny Area: {abs_shiny:.2f}%")
     print(f"Unconditioned Area: {abs_uncond:.2f}%")
     print(f"Black Grooves Area: {abs_black:.2f}%\n")
+
 
 if __name__ == "__main__":
     # Point this to your specific image file
