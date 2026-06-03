@@ -3,9 +3,10 @@ import cv2
 import numpy as np
 from sklearn.cluster import KMeans
 
+
 def process_switchgear_disc(image_path):
-    if not os.path.exists("images"):
-        os.makedirs("images")
+    if not os.path.exists("images13"):
+        os.makedirs("images13")
 
     img = cv2.imread(image_path)
     if img is None:
@@ -20,8 +21,14 @@ def process_switchgear_disc(image_path):
     # ==========================================
     blur_hough = cv2.GaussianBlur(img_gray, (9, 9), 2)
     circles = cv2.HoughCircles(
-        blur_hough, cv2.HOUGH_GRADIENT, dp=1, minDist=height // 2,
-        param1=50, param2=30, minRadius=0, maxRadius=0
+        blur_hough,
+        cv2.HOUGH_GRADIENT,
+        dp=1,
+        minDist=height // 2,
+        param1=50,
+        param2=30,
+        minRadius=0,
+        maxRadius=0,
     )
 
     mask = np.zeros_like(img_gray)
@@ -33,37 +40,57 @@ def process_switchgear_disc(image_path):
     mask_bool = mask > 0
 
     img_masked = cv2.bitwise_and(img, img, mask=mask)
-    cv2.imwrite("images/1_masked_disc.jpg", img_masked)
+    cv2.imwrite("images13/1_masked_disc.jpg", img_masked)
 
     # ==========================================
     # 2. Advanced Preprocessing (Bilateral + CLAHE)
     # ==========================================
     # Bilateral filter removes central grain while keeping pit edges sharp
     smoothed = cv2.bilateralFilter(img_gray, d=11, sigmaColor=75, sigmaSpace=75)
-    
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+
+    clahe = cv2.createCLAHE(clipLimit=5.0, tileGridSize=(8, 8))
     img_clahe = clahe.apply(smoothed)
-    
+
     img_clahe_masked = cv2.bitwise_and(img_clahe, img_clahe, mask=mask)
-    cv2.imwrite("images/2_high_contrast.jpg", img_clahe_masked)
+    cv2.imwrite("images13/2_high_contrast.jpg", img_clahe_masked)
 
     # ==========================================
     # 3. Robust Black Groove Isolation
     # ==========================================
-    thresh = cv2.adaptiveThreshold(
-        img_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-        cv2.THRESH_BINARY_INV, blockSize=21, C=10
-    )
-    thresh = cv2.bitwise_and(thresh, thresh, mask=mask)
+    # thresh = cv2.adaptiveThreshold(
+    #     img_gray,
+    #     255,
+    #     cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+    #     cv2.THRESH_BINARY_INV,
+    #     blockSize=21,
+    #     C=10,
+    # )
+    # thresh = cv2.bitwise_and(thresh, thresh, mask=mask)
 
-    kernel_clean = np.ones((3, 3), np.uint8)
-    cleaned_grooves = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel_clean)
+    # kernel_clean = np.ones((3, 3), np.uint8)
+    # cleaned_grooves = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel_clean)
 
-    kernel_buffer = np.ones((5, 5), np.uint8)
-    black_mask_dilated = cv2.dilate(cleaned_grooves, kernel_buffer, iterations=2)
-    cv2.imwrite("images/3_black_grooves_mask.jpg", black_mask_dilated)
+    # kernel_buffer = np.ones((5, 5), np.uint8)
+    # black_mask_dilated = cv2.dilate(cleaned_grooves, kernel_buffer, iterations=2)
+    # cv2.imwrite("images13/3_black_grooves_mask.jpg", black_mask_dilated)
 
-    black_mask_bool = black_mask_dilated > 0
+    # black_mask_bool = black_mask_dilated > 0
+
+    manual_mask_path = "manual_mask.jpg"
+    manual_mask = cv2.imread(manual_mask_path, cv2.IMREAD_GRAYSCALE)
+
+    if manual_mask is None:
+        print("Error: Manual mask file not found.")
+        return
+
+    # Force the mask to be strictly binary (just in case of compression artifacts)
+    _, binary_mask = cv2.threshold(manual_mask, 127, 255, cv2.THRESH_BINARY)
+
+    # Convert to boolean for the clustering exclusion logic
+    black_mask_bool = binary_mask > 0
+
+    # Save a copy to the output folder for your records
+    cv2.imwrite("results/3_black_grooves_mask.jpg", binary_mask)
 
     # ==========================================
     # 4. Surface Segmentation (3-Cluster Logic)
@@ -78,15 +105,15 @@ def process_switchgear_disc(image_path):
 
     # Sort centres by brightness
     sorted_idx = np.argsort(centers)
-    
+
     # The darkest cluster represents the true deep pitting (unconditioned)
     unconditioned_lbl = sorted_idx[0]
 
     labels_full = np.full(img_gray.shape, -1)
     labels_full[surface_mask] = labels
 
-    unconditioned_mask = (labels_full == unconditioned_lbl)
-    
+    unconditioned_mask = labels_full == unconditioned_lbl
+
     # Everything else on the valid surface belongs to the clean metal
     shiny_mask = surface_mask & (~unconditioned_mask)
 
@@ -98,13 +125,13 @@ def process_switchgear_disc(image_path):
     vis[black_mask_bool] = [0, 0, 0]
 
     vis = cv2.bitwise_and(vis, vis, mask=mask)
-    cv2.imwrite("images/4_final_segmentation.jpg", vis)
+    cv2.imwrite("images13/4_final_segmentation.jpg", vis)
 
     # ==========================================
     # Output Calculations
     # ==========================================
     total_disc_area = np.sum(mask_bool)
-    black_area = np.sum(black_mask_bool) 
+    black_area = np.sum(black_mask_bool)
     surface_area = total_disc_area - black_area
 
     shiny_area = np.sum(shiny_mask)
@@ -117,16 +144,17 @@ def process_switchgear_disc(image_path):
     abs_uncond = (unconditioned_area / total_disc_area) * 100
     abs_black = (black_area / total_disc_area) * 100
 
-    print("\nAnalysis 1: Relative Conditioning (Excluding Grooves)")
-    print(f"Total Area = {surface_area} pixels")
+    print("\nAnalysis Conditioning (w/o lines)")
+    # print(f"Total Area = {surface_area} pixels")
     print(f"Shiny Area: {rel_shiny:.2f}%")
-    print(f"Unconditioned Area: {rel_uncond:.2f}%")
+    print(f"Unconditioned Area: {rel_uncond:.2f}%\n")
 
-    print("\nAnalysis 2: Absolute Composition (Including Grooves)")
-    print(f"Total Area = {total_disc_area} pixels")
-    print(f"Shiny Area: {abs_shiny:.2f}%")
-    print(f"Unconditioned Area: {abs_uncond:.2f}%")
-    print(f"Black Grooves Area: {abs_black:.2f}%\n")
+    # print("\nAnalysis 2: Absolute Composition (Including Grooves)")
+    # print(f"Total Area = {total_disc_area} pixels")
+    # print(f"Shiny Area: {abs_shiny:.2f}%")
+    # print(f"Unconditioned Area: {abs_uncond:.2f}%")
+    # print(f"Black Grooves Area: {abs_black:.2f}%\n")
+
 
 if __name__ == "__main__":
     process_switchgear_disc("Bild.jpg")

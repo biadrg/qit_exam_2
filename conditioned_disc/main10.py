@@ -67,27 +67,43 @@ def process_switchgear_disc(image_path):
     # 3. Robust Black Groove Isolation
     # ==========================================
     # We find the baseline threshold using Otsu's method on the pixels inside the disc.
-    pixels_inside = img_gray[mask_bool]
-    otsu_thresh, _ = cv2.threshold(
-        pixels_inside, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-    )
+    # pixels_inside = img_gray[mask_bool]
+    # otsu_thresh, _ = cv2.threshold(
+    #     pixels_inside, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    # )
 
-    # We multiply the threshold by 0.8 to be stricter, capturing only the deepest black pixels of the grooves.
-    black_mask_raw = (img_gray < otsu_thresh * 0.8).astype(np.uint8) * 255
-    black_mask_raw = cv2.bitwise_and(black_mask_raw, black_mask_raw, mask=mask)
+    # # We multiply the threshold by 0.8 to be stricter, capturing only the deepest black pixels of the grooves.
+    # black_mask_raw = (img_gray < otsu_thresh * 0.8).astype(np.uint8) * 255
+    # black_mask_raw = cv2.bitwise_and(black_mask_raw, black_mask_raw, mask=mask)
 
-    # We use morphological operations to clean speckles and close small gaps in the detected lines.
-    kernel3 = np.ones((3, 3), np.uint8)
-    kernel5 = np.ones((5, 5), np.uint8)
-    cleaned_grooves = cv2.morphologyEx(black_mask_raw, cv2.MORPH_OPEN, kernel3)
-    cleaned_grooves = cv2.morphologyEx(cleaned_grooves, cv2.MORPH_CLOSE, kernel5)
+    # # We use morphological operations to clean speckles and close small gaps in the detected lines.
+    # kernel3 = np.ones((3, 3), np.uint8)
+    # kernel5 = np.ones((5, 5), np.uint8)
+    # cleaned_grooves = cv2.morphologyEx(black_mask_raw, cv2.MORPH_OPEN, kernel3)
+    # cleaned_grooves = cv2.morphologyEx(cleaned_grooves, cv2.MORPH_CLOSE, kernel5)
 
-    # We dilate the mask to create a physical exclusion buffer around the grooves.
-    # This stops the unconditioned (purple) cluster from bleeding into the black edges during segmentation.
-    black_mask_dilated = cv2.dilate(cleaned_grooves, kernel3, iterations=2)
-    cv2.imwrite("results/3_black_grooves_mask.jpg", black_mask_dilated)
+    # # We dilate the mask to create a physical exclusion buffer around the grooves.
+    # # This stops the unconditioned (purple) cluster from bleeding into the black edges during segmentation.
+    # black_mask_dilated = cv2.dilate(cleaned_grooves, kernel3, iterations=2)
+    # cv2.imwrite("results/3_black_grooves_mask.jpg", black_mask_dilated)
 
-    black_mask_bool = black_mask_dilated > 0
+    # black_mask_bool = black_mask_dilated > 0
+
+    manual_mask_path = "manual_mask.jpg"
+    manual_mask = cv2.imread(manual_mask_path, cv2.IMREAD_GRAYSCALE)
+
+    if manual_mask is None:
+        print("Error: Manual mask file not found.")
+        return
+
+    # Force the mask to be strictly binary (just in case of compression artifacts)
+    _, binary_mask = cv2.threshold(manual_mask, 127, 255, cv2.THRESH_BINARY)
+
+    # Convert to boolean for the clustering exclusion logic
+    black_mask_bool = binary_mask > 0
+
+    # Save a copy to the output folder for your records
+    cv2.imwrite("results/3_black_grooves_mask.jpg", binary_mask)
 
     # ==========================================
     # 4. Surface Segmentation (Shiny vs. Unconditioned)
