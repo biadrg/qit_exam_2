@@ -171,9 +171,19 @@ def process_switchgear_disc(image_path):
         rel_shiny = 0
         rel_uncond = 0
 
-    print("\nResults:")
-    print(f"Shiny area: {rel_shiny:.2f}%")
-    print(f"Unconditioned area: {rel_uncond:.2f}%\n")
+    # print("\nResults:")
+    # print(f"Shiny area: {rel_shiny:.2f}%")
+    # print(f"Unconditioned area: {rel_uncond:.2f}%\n")
+
+    abs_shiny = (shiny_area / total_disc_area) * 100
+    abs_uncond = (unconditioned_area / total_disc_area) * 100
+    abs_black = (black_area / total_disc_area) * 100
+
+    # print("\nResults:")
+    # print(f"Shiny area: {abs_shiny:.2f}%")
+    print(f"Unconditioned area: {abs_uncond:.2f}%")
+    # print(f"Black lines area: {abs_black:.2f}%\n")
+
     # print(f"Sum: {rel_shiny + rel_uncond:.2f}%\n")
 
     # print("\nAnalysis 2: Absolute Composition (Including Grooves)")

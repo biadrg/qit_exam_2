@@ -151,10 +151,20 @@ else:
     white_pct = 0
     edge_pct = 0
 
-print("\nResults:")
-print(f"Shiny area: {white_pct:.2f}%")  # Shiny/conditioned percentage
-print(f"Unconditioned area: {edge_pct:.2f}%\n")  # Unconditioned/rough percentage
+# print("\nResults:")
+# print(f"Shiny area: {white_pct:.2f}%")  # Shiny/conditioned percentage
+# print(f"Unconditioned area: {edge_pct:.2f}%\n")  # Unconditioned/rough percentage
 # print(f"Sum: {white_pct + edge_pct:.2f}%\n")  # Should equal 100%
+
+total_disc_area = np.sum(mask_circle)
+abs_shiny_pct = 100 * white_pixels / total_disc_area
+abs_edge_pct = 100 * edge_pixels / total_disc_area
+abs_black_pct = 100 * black_pixels / total_disc_area
+
+# print("\nResults:")
+# print(f"Shiny area: {abs_shiny_pct:.2f}%")
+print(f"Unconditioned area: {abs_edge_pct:.2f}%")
+# print(f"Black lines area: {abs_black_pct:.2f}%\n")
 
 vis = np.zeros((height, width, 3), dtype=np.uint8)
 vis[white_mask] = [255, 255, 255]  # White

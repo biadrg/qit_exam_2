@@ -20,8 +20,8 @@ def brightness(lab_value):
 
 
 def process_switchgear_disc(image_path):
-    if not os.path.exists("images_hybrid"):
-        os.makedirs("images_hybrid")
+    if not os.path.exists("images_hybrid2"):
+        os.makedirs("images_hybrid2")
 
     img = cv2.imread(image_path)
     if img is None:
@@ -54,7 +54,7 @@ def process_switchgear_disc(image_path):
 
     mask_bool = mask > 0
     img_masked = cv2.bitwise_and(img, img, mask=mask)
-    cv2.imwrite("images_hybrid/1_image_masked.jpg", img_masked)
+    cv2.imwrite("images_hybrid2/1_masked_disc.jpg", img_masked)
 
     # ==========================================
     # 2. Advanced Preprocessing (Bilateral + CLAHE)
@@ -62,7 +62,7 @@ def process_switchgear_disc(image_path):
     # Bilateral filter: removes central grain/noise while keeping pit edges sharp
     # Apply to BGR image to preserve color information
     smoothed = cv2.bilateralFilter(img_masked, d=11, sigmaColor=75, sigmaSpace=75)
-    cv2.imwrite("images_hybrid/2_image_smoothed.jpg", smoothed)
+    cv2.imwrite("images_hybrid2/2_smoothed.jpg", smoothed)
 
     # Convert to LAB for CLAHE (better to enhance luminance in LAB space)
     lab_smooth = cv2.cvtColor(smoothed, cv2.COLOR_BGR2LAB)
@@ -73,14 +73,14 @@ def process_switchgear_disc(image_path):
 
     # Convert back to BGR for further processing
     img_clahe_masked = cv2.cvtColor(lab_smooth, cv2.COLOR_LAB2BGR)
-    cv2.imwrite("images_hybrid/3_image_adjusted.jpg", img_clahe_masked)
+    cv2.imwrite("images_hybrid2/3_high_contrast.jpg", img_clahe_masked)
 
     # ==========================================
     # 3. Load Manual Masks (Grooves & Center)
     # ==========================================
     # Load both manual masks for exclusion zones
     manual_grooves = cv2.imread("manual_mask.jpg", cv2.IMREAD_GRAYSCALE)
-    # manual_center = cv2.imread("center_mask_optimised.jpg", cv2.IMREAD_GRAYSCALE)
+    manual_center = cv2.imread("center_mask_optimised.jpg", cv2.IMREAD_GRAYSCALE)
 
     if manual_grooves is None:
         print("Error: manual_mask.jpg not found.")
@@ -88,7 +88,10 @@ def process_switchgear_disc(image_path):
 
     # Threshold to make strictly binary
     _, grooves_binary = cv2.threshold(manual_grooves, 127, 255, cv2.THRESH_BINARY)
+    _, center_binary = cv2.threshold(manual_center, 127, 255, cv2.THRESH_BINARY)
+
     grooves_bool = grooves_binary > 0
+    center_bool = center_binary > 0
 
     # Center mask optional - use if available
     # center_bool = np.zeros_like(mask_bool)
@@ -97,12 +100,12 @@ def process_switchgear_disc(image_path):
     #     center_bool = center_binary > 0
 
     # Create exclusion zone: grooves OR center
-    exclusion_zone = grooves_bool
+    exclusion_zone = grooves_bool | center_bool
 
     # Define surface area: disc AND NOT grooves AND NOT center
-    surface_mask = mask_bool & (~exclusion_zone)
+    surface_mask = mask_bool & (~grooves_bool) & (~center_bool)
     cv2.imwrite(
-        "images_hybrid/4_image_surface_mask.jpg", (surface_mask.astype(np.uint8) * 255)
+        "images_hybrid2/4_surface_mask.jpg", (surface_mask.astype(np.uint8) * 255)
     )
 
     # ==========================================
@@ -168,9 +171,6 @@ def process_switchgear_disc(image_path):
     unconditioned_mask &= ~margin
     middle_mask &= ~margin
 
-    # ==========================================
-    # 9. Calculate Statistics
-    # ==========================================
     total_disc_area = np.sum(mask_bool)
     exclusion_area = np.sum(exclusion_zone)
     # total_disc_area -= exclusion_area  # Adjust total area to exclude grooves/center
@@ -191,30 +191,9 @@ def process_switchgear_disc(image_path):
         shiny_pct = 0
         uncond_pct = 0
 
-    # print("\nResults:")
-    # # print(f"Total Area = {surface_area} pixels")
-    # print(f"Shiny area: {shiny_pct:.2f}%")
-    # print(f"Unconditioned area: {uncond_pct:.2f}%\n")
-
-    abs_shiny = (shiny_pixels / total_disc_area) * 100
-    abs_uncond = (unconditioned_pixels / total_disc_area) * 100
-    abs_exclusion = (exclusion_area / total_disc_area) * 100
-
-    # print("\nResults:")
-    # print(f"Shiny area: {abs_shiny:.2f}%")
-    print(f"Unconditioned area: {abs_uncond:.2f}%")
-    # print(f"Black lines area: {abs_exclusion:.2f}%\n")
-
-    # print(f"  Sum:                      {shiny_pct + uncond_pct:.2f}%\n")
-    # print(f"  Mid-tone (Transition):    {rel_middle:.2f}%")
-    # print(f"  Total Surface Area:       {surface_area} pixels")
-
-    # print("\nResults:")
-    # print(f"  Shiny Area:               {abs_shiny:.2f}%")
-    # print(f"  Unconditioned Area:       {abs_uncond:.2f}%\n")
-    # print(f"  Grooves/Center Area:      {abs_exclusion:.2f}%")
-    # print(f"  Total Disc Area:          {total_disc_area} pixels")
-    # print("=" * 60 + "\n")
+    print("\nResults:")
+    print(f"  Shiny:      {shiny_pct:.2f}%")
+    print(f"  Unconditioned:   {uncond_pct:.2f}%\n")
 
     # ==========================================
     # 11. Create Color-Coded Visualization
@@ -223,15 +202,14 @@ def process_switchgear_disc(image_path):
 
     # Apply colors in order (later overwrites earlier)
     vis[shiny_mask] = [255, 255, 255]  # White for shiny
-
-    vis[middle_mask] = [255, 255, 255]  # Blue-gray for mid-tone
     vis[unconditioned_mask] = [138, 73, 138]  # Purple for unconditioned
-    # vis[center_bool] = [255, 255, 255]  # Force center to white
-    vis[grooves_bool] = [0, 0, 0]  # Force grooves to black (last, overwrites)
+    # vis[middle_mask] = [255, 255, 255]  # White for mid-tone (blend with shiny)
+    vis[center_bool] = [255, 255, 255]  # Force center to white (blends with shiny)
+    # vis[grooves_bool] = [0, 0, 0]  # Force grooves to black (last, overwrites)
 
     # Apply disc mask to keep only circular region
     vis = cv2.bitwise_and(vis, vis, mask=mask)
-    cv2.imwrite("images_hybrid/5_image_highlighted.jpg", vis)
+    cv2.imwrite("images_hybrid2/5_final_segmentation.jpg", vis)
 
     # print("Output directory: images_hybrid/")
     # print("Segmentation saved to: 5_final_segmentation.jpg")

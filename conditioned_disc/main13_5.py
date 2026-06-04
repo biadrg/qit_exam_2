@@ -154,26 +154,38 @@ def process_switchgear_disc(image_path):
     # Output Calculations
     # ==========================================
     total_disc_area = np.sum(mask_bool)
-    black_area = np.sum(grooves_bool)
-    surface_area = total_disc_area - black_area
+    # black_area = np.sum(grooves_bool)
+    # surface_area = total_disc_area - black_area
 
+    exclusion_area = np.sum(grooves_bool | center_bool)
+    surface_area = total_disc_area - exclusion_area
     shiny_area = np.sum(shiny_mask)
     unconditioned_area = np.sum(unconditioned_mask)
 
     # Calculate percentages using only active pixels (shiny + unconditioned)
     # This ensures they sum to exactly 100%
-    active_pixels = shiny_area + unconditioned_area
+    # active_pixels = shiny_area + unconditioned_area
 
-    if active_pixels > 0:
-        rel_shiny = (shiny_area / active_pixels) * 100
-        rel_uncond = (unconditioned_area / active_pixels) * 100
+    if surface_area > 0:
+        rel_shiny = (shiny_area / surface_area) * 100
+        rel_uncond = (unconditioned_area / surface_area) * 100
     else:
         rel_shiny = 0
         rel_uncond = 0
 
-    print("\nResults:")
-    print(f"Shiny area: {rel_shiny:.2f}%")
-    print(f"Unconditioned area: {rel_uncond:.2f}%\n")
+    # print("\nResults:")
+    # print(f"Shiny area: {rel_shiny:.2f}%")
+    # print(f"Unconditioned area: {rel_uncond:.2f}%\n")
+
+    abs_shiny = (shiny_area / total_disc_area) * 100
+    abs_uncond = (unconditioned_area / total_disc_area) * 100
+    abs_exclusion = (exclusion_area / total_disc_area) * 100
+
+    # print("\nResults:")
+    # print(f"Shiny area: {abs_shiny:.2f}%")
+    print(f"Unconditioned area: {abs_uncond:.2f}%")
+    # print(f"Black lines area: {abs_exclusion:.2f}%\n")
+
     # print(f"Sum: {rel_shiny + rel_uncond:.2f}%\n")
 
     # print("\nAnalysis 2: Absolute Composition (Including Grooves)")

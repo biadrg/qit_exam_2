@@ -4,15 +4,21 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 
 # 1. Load the original, clean image
-img = cv2.imread('image_49b37f.png') 
+img = cv2.imread("image_49b37f.png")
 img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 # 2. Find the contact disc boundary
 blurred = cv2.medianBlur(gray, 11)
 circles = cv2.HoughCircles(
-    blurred, cv2.HOUGH_GRADIENT, dp=1, minDist=img.shape[0] // 2,
-    param1=50, param2=30, minRadius=int(img.shape[0] * 0.35), maxRadius=int(img.shape[0] * 0.48)
+    blurred,
+    cv2.HOUGH_GRADIENT,
+    dp=1,
+    minDist=img.shape[0] // 2,
+    param1=50,
+    param2=30,
+    minRadius=int(img.shape[0] * 0.35),
+    maxRadius=int(img.shape[0] * 0.48),
 )
 
 # 3. Create the mask and filter pixels
@@ -48,21 +54,21 @@ full_labels = np.full(gray.shape, -1, dtype=int)
 full_labels[mask == 255] = labels
 
 # Paint Type 1 Green and Type 2 Blue
-segmented_img[full_labels == patchy_type1_idx] = [100, 200, 100] # Green
-segmented_img[full_labels == bright_type2_idx] = [100, 150, 220] # Blue
+segmented_img[full_labels == patchy_type1_idx] = [100, 200, 100]  # Green
+segmented_img[full_labels == bright_type2_idx] = [100, 150, 220]  # Blue
 
 # Display the side-by-side comparison
 plt.figure(figsize=(12, 6))
 
 plt.subplot(1, 2, 1)
-plt.title('Isolated Contact Disc')
+plt.title("Isolated Contact Disc")
 plt.imshow(cv2.bitwise_and(img_rgb, img_rgb, mask=mask))
-plt.axis('off')
+plt.axis("off")
 
 plt.subplot(1, 2, 2)
-plt.title(f'Type 1 (Green): {type1_pct:.1f}% | Type 2 (Blue): {type2_pct:.1f}%')
+plt.title(f"Type 1 (Green): {type1_pct:.1f}% | Type 2 (Blue): {type2_pct:.1f}%")
 plt.imshow(cv2.bitwise_and(segmented_img, segmented_img, mask=mask))
-plt.axis('off')
+plt.axis("off")
 
 plt.tight_layout()
 plt.show()
